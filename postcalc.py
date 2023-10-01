@@ -59,7 +59,27 @@ filtered_y = []
 for y_meas in resulty:
   y = kf.update(np.matrix([[y_meas]]))
   filtered_y.append(y[1,0])
-  
+
+g = 9.82
+
+def calcStartAngle(yAcc, g):
+    
+    # Calculate the average of the first 5 values in yAcc
+    avg_yAcc = np.mean(yAcc[:5])
+
+    startangle = np.arccos(avg_yAcc/-g) * 180 / np.pi
+    print(startangle)
+    
+    if (startangle < 0):
+        startangle = startangle + 180
+    else:
+        startangle = startangle - 180
+    
+    print(startangle)
+    return startangle
+
+startangle = calcStartAngle(filtered_y, g)
+ 
 #checks if the device is moving
 def checkmovement(i):
     if ((filtered_x[i] > 0.1 or filtered_x[i] < -0.1) and (filtered_y[i] > 0.1 or filtered_y[i] < -0.1)):
