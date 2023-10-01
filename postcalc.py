@@ -4,7 +4,7 @@ from kalmanFilter import KalmanFilter
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Open file dialog
+# Open file dialog to choose acceleration file (.json)
 root = Tk()
 root.withdraw()
 file_path = filedialog.askopenfilename()
@@ -18,6 +18,9 @@ with open(file_path) as f:
 x = data['accX']
 y = data['accY']
 z = data['accZ']
+
+dT = 1/52 # sampling frequency
+time = len(x)*dT # total duration of the data, assuming the data is sampled at 1/52Hz, i.e. 52Hz
 
 #sliding window function
 def sliding_window(elements, window_size):
@@ -34,7 +37,7 @@ resultx = sliding_window(x, 10)
 resulty = sliding_window(y, 10)
 resultz = sliding_window(z, 10)
 
-# Set up Kalman filter 
+# Set up Kalman filter (2D x,y (not z!!))
 dt = 1/52 # sampling time
 u_x = 0 # assuming zero acceleration
 u_y = 0
@@ -56,14 +59,24 @@ filtered_y = []
 for y_meas in resulty:
   y = kf.update(np.matrix([[y_meas]]))
   filtered_y.append(y[1,0])
+  
+#checks if the device is moving
+def checkmovement(i):
+    if ((filtered_x[i] > 0.1 or filtered_x[i] < -0.1) and (filtered_y[i] > 0.1 or filtered_y[i] < -0.1)):
+        return True
+    else:
+        return False
 
 # Calculate velocity from filtered acceleration data using numerical integration
 def integrate_acceleration(filtered_acceleration, dt):
     velocity = [0]  # Initial velocity is 0
     for i in range(1, len(filtered_acceleration)):
-        # Use trapezoidal rule for numerical integration
-        delta_velocity = (filtered_acceleration[i] + filtered_acceleration[i - 1]) / 2 * dt
-        velocity.append(velocity[-1] + delta_velocity)
+        if (checkmovement(i)):
+            velocity.append(0)
+        else:
+            # Use trapezoidal rule for numerical integration
+            delta_velocity = (filtered_acceleration[i] + filtered_acceleration[i - 1]) / 2 * dt
+            velocity.append(velocity[-1] + delta_velocity)
     return velocity
 
 # Assuming dt is the sampling time (which is 1/52 in your case)
