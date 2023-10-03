@@ -79,10 +79,11 @@ def calcStartAngle(yAcc, g):
     return startangle
 
 startangle = calcStartAngle(filtered_y, g)
+threshold = 0.5
  
 #checks if the device is moving
 def checkmovement(i):
-    if ((filtered_x[i] > 0.1 or filtered_x[i] < -0.1) and (filtered_y[i] > 0.1 or filtered_y[i] < -0.1)):
+    if ((filtered_x[i] > threshold or filtered_x[i] < -threshold) and (filtered_y[i] > threshold or filtered_y[i] < -threshold)):
         return True
     else:
         return False
