@@ -19,10 +19,24 @@ x = data['accX']
 y = data['accY']
 z = data['accZ']
 
+plt.subplot(2, 1, 1)
+plt.plot(x, label='Raw Acceleration X')
+plt.ylabel('Acceleration (m/s^2)')
+plt.legend()
+
+plt.subplot(2, 1, 2)
+plt.plot(y, label='Raw Acceleration Y') 
+plt.xlabel('Time Steps')
+plt.ylabel('Acceleration (m/s^2)')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
 dT = 1/52 # sampling frequency
 time = len(x)*dT # total duration of the data, assuming the data is sampled at 1/52Hz, i.e. 52Hz
 
-#sliding window function
+#sliding window function that takes a certain window size and returns a vector containing averages
 def sliding_window(elements, window_size):
     result = []
     if len(elements) <= window_size:
@@ -47,19 +61,22 @@ y_std_meas = 0.5 # tune this
 
 self = None
 
-kf = KalmanFilter(dt, u_x, u_y, std_acc, x_std_meas, y_std_meas)
+#kf = KalmanFilter(dt, u_x, u_y, std_acc, x_std_meas, y_std_meas)
 
 # Filter each axis
-filtered_x = []
-for x_meas in resultx:
-  x = kf.update(np.matrix([[x_meas]]))
-  filtered_x.append(x[0,0])
+#filtered_x = []
+#for x_meas in resultx:
+#  x = kf.update(np.matrix([[x_meas]]))
+#  filtered_x.append(x[0,0])
 
-filtered_y = []  
-for y_meas in resulty:
-  y = kf.update(np.matrix([[y_meas]]))
-  filtered_y.append(y[1,0])
+filtered_x = x
 
+#filtered_y = []  
+#for y_meas in resulty:
+#  y = kf.update(np.matrix([[y_meas]]))
+#  filtered_y.append(y[1,0])
+
+filtered_y = y
 g = 9.82
 
 def calcStartAngle(yAcc, g):
@@ -78,8 +95,23 @@ def calcStartAngle(yAcc, g):
     print(startangle)
     return startangle
 
-startangle = calcStartAngle(filtered_y, g)
+startangle = calcStartAngle(y, g)
 threshold = 0.1
+
+#takes a acceleration vector and loop index as input 
+def detect_turning_point(acc, i):
+
+    if i == 0: 
+        return False
+    
+    pos_to_neg = acc[i-1] > 0 and acc[i] < 0
+    neg_to_pos = acc[i-1] < 0 and acc[i] > 0
+    
+    if pos_to_neg or neg_to_pos:
+        return True
+    
+    else:
+        return False    
  
 #checks if the device is moving
 def checkmovement(i):
@@ -92,7 +124,7 @@ def checkmovement(i):
 def integrate_acceleration(filtered_acceleration, dt):
     velocity = [0]  # Initial velocity is 0
     for i in range(1, len(filtered_acceleration)):
-        if (checkmovement(i)):
+        if (detect_turning_point(y,i)):
             velocity.append(0)
         else:
             # Use trapezoidal rule for numerical integration
@@ -104,18 +136,24 @@ def integrate_acceleration(filtered_acceleration, dt):
 sampling_time = 1/52
 
 # Calculate velocity for filtered x and y acceleration data
-velocity_x = integrate_acceleration(filtered_x, sampling_time)
-velocity_y = integrate_acceleration(filtered_y, sampling_time)
+
+velocity_x = integrate_acceleration(x, sampling_time)
+velocity_y = integrate_acceleration(y, sampling_time)
 
 # Now, velocity_x and velocity_y contain the calculated velocities from filtered x and y acceleration data respectively
 
-# Plot the velocities
-plt.figure(figsize=(10, 6))
+# Plot velocity x and y
+plt.subplot(2, 1, 1)
 plt.plot(velocity_x, label='Velocity X')
+plt.ylabel('Velocity (m/s)')
+plt.legend()
+
+plt.subplot(2, 1, 2)  
 plt.plot(velocity_y, label='Velocity Y')
 plt.xlabel('Time Steps')
-plt.ylabel('Velocity')
-plt.title('Velocity Calculated from Filtered Acceleration Data')
+plt.ylabel('Velocity (m/s)') 
 plt.legend()
-plt.grid(True)
+
+plt.tight_layout()
 plt.show()
+# Plot raw acceleration 
