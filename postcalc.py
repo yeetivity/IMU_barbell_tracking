@@ -56,8 +56,8 @@ dt = 1/52 # sample time
 u_x = 0 # assuming zero acceleration
 u_y = 0
 std_acc = 0.1 # tune this
-x_std_meas = 0.1 # tune this
-y_std_meas = 0.05 # tune this
+x_std_meas = 0.01 # tune this
+y_std_meas = 0.01 # tune this
 
 #initiates the kalman filter
 kf = KalmanFilter(dt, u_x, u_y, std_acc, x_std_meas, y_std_meas)
@@ -113,7 +113,7 @@ def calcStartAngle(yAcc, g):
     return startangle
 
 startangle = calcStartAngle(y_filtered, g)
-threshold = 0.1
+threshold = 0.5
 
 #takes a acceleration vector and loop index as input 
 def detect_turning_point(acc, i):
@@ -132,7 +132,7 @@ def detect_turning_point(acc, i):
  
 #checks if the device is moving
 def checkmovement(i):
-    if ((x_filtered[i] > threshold and x_filtered[i] < -threshold) or (y_filtered[i] > threshold and y_filtered[i] < -threshold)):
+    if ((x_filtered[i] > threshold or x_filtered[i] < -threshold) and (y_filtered[i] > threshold or y_filtered[i] < -threshold)):
         return True
     else:
         return False
@@ -141,17 +141,16 @@ def checkmovement(i):
 def integrate_acceleration(filtered_acceleration, dt):
     velocity = [0]  # Initial velocity is 0
     for i in range(1, len(filtered_acceleration)):
-        if detect_turning_point(filtered_acceleration, i):
-            velocity.append(0)
-        else:
+        
+        if (filtered_acceleration[i] > threshold or filtered_acceleration[i]<-threshold):    
             # Use trapezoidal rule for numerical integration
             delta_velocity = (filtered_acceleration[i] + filtered_acceleration[i - 1]) / 2 * dt
 
             # Adjust velocity based on the sign of acceleration
-            if filtered_acceleration[i] >= 0:
+            if filtered_acceleration[i] > 0:
                 velocity.append(velocity[-1] + delta_velocity)
             else:
-                velocity.append(velocity[-1] - delta_velocity)
+                velocity.append(velocity[-1] + delta_velocity)
     return velocity
 
 # Assuming dt is the sampling time (which is 1/52 in your case)
