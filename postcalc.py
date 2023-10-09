@@ -16,9 +16,9 @@ with open(file_path) as f:
   data = json.load(f)
 
 # Assuming your JSON structure contains 'x' and 'y' arrays, modify as needed
-x = (np.array(data['accX'])-100) / 8
-y = (np.array(data['accY'])-100) / 8
-z = (np.array(data['accZ'])-100) / 8
+x = data['accX']
+y = data['accY']
+z = data['accZ']
 xgyro = data['magX']
 ygyro = data['magY']
 zgyro = data['magZ']
@@ -63,7 +63,6 @@ for i in range(len(x)):
     deltatheta = np.sqrt(xgyro[i]**2 + ygyro[i]**2 + zgyro[i]**2) * dt
     theta = theta_initial + deltatheta
     
-    print(np.cos(theta))
     # Calculate gravity influence on x and y accelerations for each data point
     gravity_x = 9.82 * np.sin(theta)
     gravity_y = 9.82 * np.cos(theta)
@@ -81,14 +80,14 @@ for i in range(len(x)):
 plt.figure(figsize=(10, 6))
 plt.subplot(2, 1, 1)
 plt.plot(x, label='Raw Acceleration X')
-plt.plot(corrected_xacc, label='Corrected Acceleration X')
+#plt.plot(corrected_xacc, label='Corrected Acceleration X')
 plt.ylabel('Acceleration (m/s^2)')
 plt.legend()
 
 # Plotting raw and corrected Y on the same plot
 plt.subplot(2, 1, 2)
 plt.plot(y, label='Raw Acceleration Y')
-plt.plot(corrected_yacc, label='Corrected Acceleration Y')
+#plt.plot(corrected_yacc, label='Corrected Acceleration Y')
 plt.xlabel('Time Steps')
 plt.ylabel('Acceleration (m/s^2)')
 plt.legend()
@@ -176,7 +175,6 @@ def calcStartAngle(yAcc, g):
     return startangle
 
 startangle = calcStartAngle(y_filtered, g)
-threshold = 0.5
 
 #takes a acceleration vector and loop index as input 
 def detect_turning_point(acc, i):
@@ -194,6 +192,7 @@ def detect_turning_point(acc, i):
         return False    
  
 #checks if the device is moving
+threshold = 0.2
 def checkmovement(i):
     if ((x_filtered[i] > threshold or x_filtered[i] < -threshold) and (y_filtered[i] > threshold or y_filtered[i] < -threshold)):
         return True
@@ -208,12 +207,8 @@ def integrate_acceleration(filtered_acceleration, dt):
         if (filtered_acceleration[i] > threshold or filtered_acceleration[i]<-threshold):    
             # Use trapezoidal rule for numerical integration
             delta_velocity = (filtered_acceleration[i] + filtered_acceleration[i - 1]) / 2 * dt
-
-            # Adjust velocity based on the sign of acceleration
-            if filtered_acceleration[i] > 0:
-                velocity.append(velocity[-1] + delta_velocity)
-            else:
-                velocity.append(velocity[-1] + delta_velocity)
+            
+            velocity.append(velocity[-1] + delta_velocity) 
     return velocity
 
 # Assuming dt is the sampling time (which is 1/52 in your case)
@@ -221,8 +216,8 @@ sampling_time = 1/52
 
 # Calculate velocity for filtered x and y acceleration data
 
-velocity_x = integrate_acceleration(corrected_xacc, sampling_time)
-velocity_y = integrate_acceleration(corrected_yacc, sampling_time)
+velocity_x = integrate_acceleration(x, sampling_time)
+velocity_y = integrate_acceleration(y, sampling_time)
 
 # Now, velocity_x and velocity_y contain the calculated velocities from filtered x and y acceleration data respectively
 

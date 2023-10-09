@@ -39,6 +39,8 @@ var zGyroNew =0;
 
 // array for storing values of acceleration
 var accvalues = []
+var gyrovalues = []
+var allvalues = []
 var speedvaluesXYZ = []
 var speedvalues = []
 
@@ -59,11 +61,18 @@ function filter(accDataPoint, gyroDataPoint) {
   let zGyroNew = gyroDataPoint.data.z; //we have rotation aroung this axis in the barbell case
 
   //puts the values into a struct for array storage
+  
   let accelerationdata = {
       x: xAccNew,
       y: yAccNew,
       z: zAccNew
   };
+
+  let gyrodata = {
+    xGyro: xGyroNew,
+    yGyro: yGyroNew,
+    zGyro: zGyroNew
+  }
 
   // Prediction step
   const predictionError = xAccEstimateError + processVariance;
@@ -99,6 +108,9 @@ function filter(accDataPoint, gyroDataPoint) {
   
   // adds the values to the last element of the array
   accvalues.push(accelerationdata)
+  console.log(accvalues)
+
+  gyrovalues.push(gyrodata)
 
   //ZangleFilter = alpha * ZangleFilter + (1 - alpha) * Zangle;
   //console.log(Zangle)
@@ -273,4 +285,55 @@ function saveAccValues() {
 
   console.log("saved");
 
+}
+
+// Function to save acceleration and gyroscopic values into a JSON file
+function saveAllValues() {
+  // Create separate arrays for each axis
+  let accXValues = [];
+  let accYValues = [];
+  let accZValues = [];
+  let gyroXValues = [];
+  let gyroYValues = [];
+  let gyroZValues = [];
+
+  // Separate the data into respective arrays
+  for (let i = 0; i < accvalues.length; i++) {
+      accXValues.push(accvalues[i].x);
+      accYValues.push(accvalues[i].y);
+      accZValues.push(accvalues[i].z);
+  }
+
+  for (let i = 0; i < gyrovalues.length; i++) {
+      gyroXValues.push(gyrovalues[i].xGyro);
+      gyroYValues.push(gyrovalues[i].yGyro);
+      gyroZValues.push(gyrovalues[i].zGyro);
+  }
+
+  // Create data object with structured properties
+  let data = {
+      accX: accXValues,
+      accY: accYValues,
+      accZ: accZValues,
+      gyroX: gyroXValues,
+      gyroY: gyroYValues,
+      gyroZ: gyroZValues
+  };
+
+  // Convert data object to JSON
+  let jsonData = JSON.stringify(data);
+
+  // Create a Blob containing the JSON data
+  let blob = new Blob([jsonData], { type: "application/json" });
+
+  // Construct the filename
+  let filename = "data.json";
+
+  // Create an anchor element and click to trigger download
+  let a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+
+  console.log("saved");
 }

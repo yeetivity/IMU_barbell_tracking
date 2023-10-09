@@ -13,6 +13,15 @@ var zGyro = [];
 var rollAr = [];
 var pitchAr = [];
 var yawAr = [];
+
+//lists for raw acceleration
+var xacc = []
+var yacc = []
+var zacc = []
+var xgyro = []
+var ygyro = []
+var zgyro = []
+
 // Bluetooth variables
 let targetDevice = null;
 const AccGyro_SERVICE = "fb005c80-02e7-f387-1cad-8acd2d8df0c8";
@@ -130,6 +139,10 @@ function uppdateAcc(xAccNew, yAccNew, zAccNew, timestamp) {
   yAcc.push(adjustY);
   zAcc.shift();
   zAcc.push(adjustZ);
+
+  xacc.push(xAccNew);
+  yacc.push(yAccNew);
+  zacc.push(zAccNew);
 }
 
 function uppdateGyro(xGyroNew, yGyroNew, zGyroNew, timestamp) {
@@ -147,6 +160,10 @@ function uppdateGyro(xGyroNew, yGyroNew, zGyroNew, timestamp) {
   yGyro.push(adjustY);
   zGyro.shift();
   zGyro.push(adjustZ);
+
+  xgyro.push(xGyroNew);
+  ygyro.push(yGyroNew);
+  zgyro.push(zGyroNew);
 }
 
 function updateGyro(value) {
@@ -473,7 +490,7 @@ function bitStringToSignedInt(binStr) {
 function saveToFile() {
   var file;
   var properties = { type: 'application/json' }; // Specify the file's mime-type.
-  var myObj = { accX: xAcc, accY: yAcc, accZ: zAcc, magX: xGyro, magY: yGyro, magZ: xGyro };
+  var myObj = { accX: xacc, accY: yacc, accZ: zacc, magX: xgyro, magY: ygyro, magZ: zgyro };
   var myJSON = JSON.stringify(myObj);
   try {
     // Specify the filename using the File constructor, but ...
