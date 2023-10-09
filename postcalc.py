@@ -1,4 +1,5 @@
 import json
+import math
 from tkinter import Tk, filedialog
 from kalmanFilter import KalmanFilter
 import numpy as np
@@ -15,17 +16,79 @@ with open(file_path) as f:
   data = json.load(f)
 
 # Assuming your JSON structure contains 'x' and 'y' arrays, modify as needed
-x = data['accX']
-y = data['accY']
-#z = data['accZ']
+x = (np.array(data['accX'])-100) / 8
+y = (np.array(data['accY'])-100) / 8
+z = (np.array(data['accZ'])-100) / 8
+xgyro = data['magX']
+ygyro = data['magY']
+zgyro = data['magZ']
 
+# Assuming dt is a constant time interval
+dt = 1/52
+
+# Number of calibration samples (assuming the device is kept still for calibration)
+num_calibration_samples = 100
+
+# Lists to store gyroscope data during calibration
+calibration_xgyro = []
+calibration_ygyro = []
+calibration_zgyro = []
+
+# Collect gyroscope data for calibration
+for index in range(num_calibration_samples):
+    
+    calibration_xgyro.append(xgyro[index])
+    calibration_ygyro.append(ygyro[index])
+    calibration_zgyro.append(zgyro[index])
+
+# Calculate the average gyroscope readings during calibration
+avg_calibration_xgyro = np.mean(calibration_xgyro)
+avg_calibration_ygyro = np.mean(calibration_ygyro)
+avg_calibration_zgyro = np.mean(calibration_zgyro)
+
+# Calculate the initial angle based on the average gyroscope readings
+theta_initial = np.sqrt(avg_calibration_xgyro**2 + avg_calibration_ygyro**2+ avg_calibration_zgyro**2)*dt
+
+# Create empty lists to store corrected x and y accelerations
+corrected_xacc = []
+corrected_yacc = []
+total_acceleration = []
+
+# Calculate corrected x and y accelerations for each data point in a loop
+for i in range(len(x)):
+    # Calculate total acceleration including gravity for each data point
+    total_acc = np.sqrt(x[i]**2 + y[i]**2 + z[i]**2)
+    
+    # Calculate the angle of rotation (in radians) using gyroscopic data for each data point
+    deltatheta = np.sqrt(xgyro[i]**2 + ygyro[i]**2 + zgyro[i]**2) * dt
+    theta = theta_initial + deltatheta
+    
+    print(np.cos(theta))
+    # Calculate gravity influence on x and y accelerations for each data point
+    gravity_x = 9.82 * np.sin(theta)
+    gravity_y = 9.82 * np.cos(theta)
+    
+    # Calculate corrected x and y accelerations for each data point
+    corrected_x = x[i] - gravity_x
+    corrected_y = y[i] - gravity_y
+    
+    # Append the corrected accelerations and total acceleration to the respective lists
+    corrected_xacc.append(corrected_x)
+    corrected_yacc.append(corrected_y)
+
+
+# Plotting raw and corrected X on the same plot
+plt.figure(figsize=(10, 6))
 plt.subplot(2, 1, 1)
 plt.plot(x, label='Raw Acceleration X')
+plt.plot(corrected_xacc, label='Corrected Acceleration X')
 plt.ylabel('Acceleration (m/s^2)')
 plt.legend()
 
+# Plotting raw and corrected Y on the same plot
 plt.subplot(2, 1, 2)
-plt.plot(y, label='Raw Acceleration Y') 
+plt.plot(y, label='Raw Acceleration Y')
+plt.plot(corrected_yacc, label='Corrected Acceleration Y')
 plt.xlabel('Time Steps')
 plt.ylabel('Acceleration (m/s^2)')
 plt.legend()
@@ -158,8 +221,8 @@ sampling_time = 1/52
 
 # Calculate velocity for filtered x and y acceleration data
 
-velocity_x = integrate_acceleration(x_filtered, sampling_time)
-velocity_y = integrate_acceleration(y_filtered, sampling_time)
+velocity_x = integrate_acceleration(corrected_xacc, sampling_time)
+velocity_y = integrate_acceleration(corrected_yacc, sampling_time)
 
 # Now, velocity_x and velocity_y contain the calculated velocities from filtered x and y acceleration data respectively
 
