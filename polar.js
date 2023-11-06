@@ -1,6 +1,9 @@
 // Variables to draw on canvases
 var canvas, canvas2, canvas3, ctx, ctx2, ctx3, requestId;
 var OutputString = "Output";
+
+var timestepsAcc = [];
+var timestampsGyro = [];
 // Lists to store the acceleration data (we draw on canvas)
 var xAcc = [];
 var yAcc = [];
@@ -13,15 +16,6 @@ var zGyro = [];
 var rollAr = [];
 var pitchAr = [];
 var yawAr = [];
-
-//lists for raw acceleration
-var xacc = []
-var yacc = []
-var zacc = []
-var xgyro = []
-var ygyro = []
-var zgyro = []
-
 // Bluetooth variables
 let targetDevice = null;
 const AccGyro_SERVICE = "fb005c80-02e7-f387-1cad-8acd2d8df0c8";
@@ -126,44 +120,41 @@ function onDataChanged(event) {
 
 function uppdateAcc(xAccNew, yAccNew, zAccNew, timestamp) {
   // Adjustment for drawing
-  let adjustX = 100 + (xAccNew * 8);
-  let adjustY = 100 + (yAccNew * 8);
-  let adjustZ = 100 + (zAccNew * 8);
+  let adjustX = (xAccNew);
+  let adjustY = (yAccNew);
+  let adjustZ = (zAccNew);
 
   let accDataPoint = new DataPoint(timestamp, 'acceleration', { x: xAccNew, y: yAccNew, z: zAccNew });
   queue.add(accDataPoint);
   queue.processQueue();
+  timestepsAcc.shift();
+  timestepsAcc.push(timestamp);
   xAcc.shift();
   xAcc.push(adjustX);
   yAcc.shift();
   yAcc.push(adjustY);
   zAcc.shift();
   zAcc.push(adjustZ);
-
-  xacc.push(xAccNew);
-  yacc.push(yAccNew);
-  zacc.push(zAccNew);
 }
 
 function uppdateGyro(xGyroNew, yGyroNew, zGyroNew, timestamp) {
   // Adjustment for drawing
-  let adjustX = 100 + (xGyroNew / 100);
-  let adjustY = 100 + (yGyroNew / 100);
-  let adjustZ = 100 + (zGyroNew / 100);
+  const degToRad = Math.PI / 180;
+  let adjustX = (xGyroNew*degToRad);
+  let adjustY = (yGyroNew*degToRad);
+  let adjustZ = (zGyroNew*degToRad);
 
   let gyroDataPoint = new DataPoint(timestamp, 'gyro', { x: xGyroNew, y: yGyroNew, z: zGyroNew });
   queue.add(gyroDataPoint);
   queue.processQueue();
+  timestampsGyro.shift();
+  timestampsGyro.push(timestamp);
   xGyro.shift();
   xGyro.push(adjustX);
   yGyro.shift();
   yGyro.push(adjustY);
   zGyro.shift();
   zGyro.push(adjustZ);
-
-  xgyro.push(xGyroNew);
-  ygyro.push(yGyroNew);
-  zgyro.push(zGyroNew);
 }
 
 function updateGyro(value) {
@@ -263,16 +254,18 @@ function init() {
   ctx2 = canvas2.getContext('2d');
   canvas3 = document.getElementById('SensorFusion');
   ctx3 = canvas3.getContext('2d');
-  for (i = 0; i < 250; i++) {
-    xAcc.push(100);
-    yAcc.push(100);
-    zAcc.push(100);
-    xGyro.push(100);
-    yGyro.push(100);
-    zGyro.push(100);
-    rollAr.push(100);
-    pitchAr.push(100);
-    yawAr.push(100);
+  for (i = 0; i < 500; i++) {
+    timestepsAcc.push(0);
+    timestampsGyro.push(0);
+    xAcc.push(0);
+    yAcc.push(0);
+    zAcc.push(0);
+    xGyro.push(0);
+    yGyro.push(0);
+    zGyro.push(0);
+    rollAr.push(0);
+    pitchAr.push(0);
+    yawAr.push(0);
   }
   console.log("init");
 }
@@ -335,11 +328,23 @@ function findPeriodCharacteristic(service) {
 
       //   const valAcc = new Uint8Array([2, 2, 0, 1, 52, 0, 1, 1, 16, 0, 2, 1, 8, 0, 4, 1, 3]);
       const valAcc = new Uint8Array([2, 2, 0, 1, 52, 0, 1, 1, 16, 0, 2, 1, 8, 0, 4, 1, 3]);
-      characteristic.writeValueWithResponse(valAcc);
+      characteristic.writeValueWithResponse(valAcc)
+      .catch(async () =>  {
+        console.log("DOMException: GATT operation already in progress.")
+        await Promise.resolve();
+        this.delayPromise(500);
+        characteristic.writeValue(valAcc);
+      });
 
       setTimeout(function () {
         const valGyro = new Uint8Array([2, 5, 0, 1, 52, 0, 1, 1, 16, 0, 2, 1, 208, 7, 4, 1, 3]);
-        characteristic.writeValueWithResponse(valGyro);
+        characteristic.writeValueWithResponse(valGyro)
+        .catch(async () =>  {
+          console.log("DOMException: GATT operation already in progress.")
+          return Promise.resolve()
+              .then(() => this.delayPromise(500))
+              .then(() => { characteristic.writeValue(valGyro);});
+        });
       }, 100);
 
 
@@ -490,7 +495,7 @@ function bitStringToSignedInt(binStr) {
 function saveToFile() {
   var file;
   var properties = { type: 'application/json' }; // Specify the file's mime-type.
-  var myObj = { accX: xacc, accY: yacc, accZ: zacc, magX: xgyro, magY: ygyro, magZ: zgyro };
+  var myObj = { accX: xAcc, accY: yAcc, accZ: zAcc, magX: xGyro, magY: yGyro, magZ: xGyro, timeStampsAcc: timestepsAcc, timeStampsGyro: timestampsGyro };
   var myJSON = JSON.stringify(myObj);
   try {
     // Specify the filename using the File constructor, but ...
