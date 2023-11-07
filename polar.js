@@ -5,17 +5,24 @@ var OutputString = "Output";
 var timestepsAcc = [];
 var timestampsGyro = [];
 // Lists to store the acceleration data (we draw on canvas)
+var xAcc_canvas = [];
+var yAcc_canvas = [];
+var zAcc_canvas = [];
+// Lists to store the gyro data (we draw on canvas2)
+var xGyro_canvas = [];
+var yGyro_canvas = [];
+var zGyro_canvas = [];
+
+// Lists to store raw acceleration data
 var xAcc = [];
 var yAcc = [];
 var zAcc = [];
-// Lists to store the gyro data (we draw on canvas2)
+
+// Lists to store raw gyro data
 var xGyro = [];
 var yGyro = [];
 var zGyro = [];
-// Lists to store the filtered data (we draw on canvas3)
-var rollAr = [];
-var pitchAr = [];
-var yawAr = [];
+
 // Bluetooth variables
 let targetDevice = null;
 const AccGyro_SERVICE = "fb005c80-02e7-f387-1cad-8acd2d8df0c8";
@@ -63,7 +70,7 @@ class DataQueue {
           let accDataPoint = firstDataPoint.type === 'acceleration' ? firstDataPoint : secondDataPoint;
           let gyroDataPoint = firstDataPoint.type === 'gyro' ? firstDataPoint : secondDataPoint;
           console.log('Match!');
-          filter(accDataPoint, gyroDataPoint);
+          // filter(accDataPoint, gyroDataPoint);
           continue;
         }
       }
@@ -72,11 +79,11 @@ class DataQueue {
       if (firstDataPoint.type === 'acceleration') {
         // Here we add a 'zero' gyro data point
         let gyroDataPoint = new DataPoint(firstDataPoint.timestamp, 'gyro', { x: 0, y: 0, z: 0 });
-        filter(firstDataPoint, gyroDataPoint)
+        // filter(firstDataPoint, gyroDataPoint)
       } else if(firstDataPoint.type === 'gyro') {
         // Here we add a 'zero' acceleration data point
         let accDataPoint = new DataPoint(firstDataPoint.timestamp, 'acceleration', {x: 0, y: 0, z: 0});
-        filter(accDataPoint, firstDataPoint)
+        // filter(accDataPoint, firstDataPoint)
       }
     }
   }
@@ -120,41 +127,51 @@ function onDataChanged(event) {
 
 function uppdateAcc(xAccNew, yAccNew, zAccNew, timestamp) {
   // Adjustment for drawing
-  let adjustX = (xAccNew);
-  let adjustY = (yAccNew);
-  let adjustZ = (zAccNew);
+  let adjustX = (xAccNew + 100);
+  let adjustY = (yAccNew + 100);
+  let adjustZ = (zAccNew + 100);
 
+  // Send to canvas
   let accDataPoint = new DataPoint(timestamp, 'acceleration', { x: xAccNew, y: yAccNew, z: zAccNew });
   queue.add(accDataPoint);
   queue.processQueue();
   timestepsAcc.shift();
   timestepsAcc.push(timestamp);
-  xAcc.shift();
-  xAcc.push(adjustX);
-  yAcc.shift();
-  yAcc.push(adjustY);
-  zAcc.shift();
-  zAcc.push(adjustZ);
+  xAcc_canvas.shift();
+  xAcc_canvas.push(adjustX);
+  yAcc_canvas.shift();
+  yAcc_canvas.push(adjustY);
+  zAcc_canvas.shift();
+  zAcc_canvas.push(adjustZ);
+
+  // Save raw values
+  xAcc.push(xAccNew)
+  yAcc.push(yAccNew)
+  zAcc.push(zAccNew)
 }
 
 function uppdateGyro(xGyroNew, yGyroNew, zGyroNew, timestamp) {
   // Adjustment for drawing
   const degToRad = Math.PI / 180;
-  let adjustX = (xGyroNew*degToRad);
-  let adjustY = (yGyroNew*degToRad);
-  let adjustZ = (zGyroNew*degToRad);
+  let adjustX = (xGyroNew * degToRad);
+  let adjustY = (yGyroNew * degToRad);
+  let adjustZ = (zGyroNew * degToRad);
 
   let gyroDataPoint = new DataPoint(timestamp, 'gyro', { x: xGyroNew, y: yGyroNew, z: zGyroNew });
   queue.add(gyroDataPoint);
   queue.processQueue();
   timestampsGyro.shift();
   timestampsGyro.push(timestamp);
-  xGyro.shift();
-  xGyro.push(adjustX);
-  yGyro.shift();
-  yGyro.push(adjustY);
-  zGyro.shift();
-  zGyro.push(adjustZ);
+  xGyro_canvas.shift();
+  xGyro_canvas.push(adjustX);
+  yGyro_canvas.shift();
+  yGyro_canvas.push(adjustY);
+  zGyro_canvas.shift
+  
+  // Save raw values
+  xGyro.push(xGyroNew)
+  yGyro.push(yGyroNew)
+  zGyro.push(zGyroNew)
 }
 
 function updateGyro(value) {
@@ -163,7 +180,7 @@ function updateGyro(value) {
   let zGyroNew = value.getInt16(10 + 2 * 2, true);
 
   let timestamp = Number(value.getBigUint64(1, true));
-  //console.log(`x: ${xGyroNew} y: ${yGyroNew} z: ${zGyroNew*0.24399999}`);
+  console.log(`x: ${xGyroNew} y: ${yGyroNew} z: ${zGyroNew*0.24399999}`);
 
   uppdateGyro(xGyroNew, yGyroNew, zGyroNew, timestamp);
 
@@ -252,20 +269,16 @@ function init() {
   ctx = canvas.getContext('2d');
   canvas2 = document.getElementById('GyroCanvas');
   ctx2 = canvas2.getContext('2d');
-  canvas3 = document.getElementById('SensorFusion');
-  ctx3 = canvas3.getContext('2d');
+
   for (i = 0; i < 500; i++) {
     timestepsAcc.push(0);
     timestampsGyro.push(0);
-    xAcc.push(0);
-    yAcc.push(0);
-    zAcc.push(0);
-    xGyro.push(0);
-    yGyro.push(0);
-    zGyro.push(0);
-    rollAr.push(0);
-    pitchAr.push(0);
-    yawAr.push(0);
+    xAcc_canvas.push(0);
+    yAcc_canvas.push(0);
+    zAcc_canvas.push(0);
+    xGyro_canvas.push(0);
+    yGyro_canvas.push(0);
+    zGyro_canvas.push(0);
   }
   console.log("init");
 }
@@ -383,23 +396,24 @@ function animationLoop(timestamp) {
   ctx.fillText("Accelerometer X Y Z:", 5, 12);
 
   ctx.strokeStyle = "#FF0000";
-  ctx.beginPath(0, 200 - xAcc[0]);
+  ctx.beginPath(0, 200 - xAcc_canvas[0]);
   for (foo = 0; foo < canvas.width; foo++) {
-    ctx.lineTo(foo * 2, 200 - xAcc[foo]);
+    ctx.lineTo(foo * 2, 200 - xAcc_canvas[foo]);
   }
   ctx.stroke();
 
   ctx.strokeStyle = "#00FF00";
-  ctx.beginPath(0, 200 - yAcc[0]);
+  ctx.beginPath(0, 200 - yAcc_canvas[0]);
   for (foo = 0; foo < canvas.width; foo++) {
-    ctx.lineTo(foo * 2, 200 - yAcc[foo]);
+    ctx.lineTo(foo * 2, 200 - yAcc_canvas
+    [foo]);
   }
   ctx.stroke();
 
   ctx.strokeStyle = "#0000FF";
-  ctx.beginPath(0, 200 - zAcc[0]);
+  ctx.beginPath(0, 200 - zAcc_canvas[0]);
   for (foo = 0; foo < canvas.width; foo++) {
-    ctx.lineTo(foo * 2, 200 - zAcc[foo]);
+    ctx.lineTo(foo * 2, 200 - zAcc_canvas[foo]);
   }
   ctx.stroke();
 
@@ -411,23 +425,23 @@ function animationLoop(timestamp) {
   ctx2.fillText('Gyro X Y Z: ', 5, 12);
 
   ctx2.strokeStyle = "#FF0000";
-  ctx2.beginPath(0, 200 - xGyro[0]);
+  ctx2.beginPath(0, 200 - xGyro_canvas[0]);
   for (foo = 0; foo < canvas2.width; foo++) {
-    ctx2.lineTo(foo * 2, 200 - xGyro[foo]);
+    ctx2.lineTo(foo * 2, 200 - xGyro_canvas[foo]);
   }
   ctx2.stroke();
 
   ctx2.strokeStyle = "#00FF00";
-  ctx2.beginPath(0, 200 - yGyro[0]);
+  ctx2.beginPath(0, 200 - yGyro_canvas[0]);
   for (foo = 0; foo < canvas2.width; foo++) {
-    ctx2.lineTo(foo * 2, 200 - yGyro[foo]);
+    ctx2.lineTo(foo * 2, 200 - yGyro_canvas[foo]);
   }
   ctx2.stroke();
 
   ctx2.strokeStyle = "#0000FF";
-  ctx2.beginPath(0, 200 - zGyro[0]);
+  ctx2.beginPath(0, 200 - zGyro_canvas[0]);
   for (foo = 0; foo < canvas2.width; foo++) {
-    ctx2.lineTo(foo * 2, 200 - zGyro[foo]);
+    ctx2.lineTo(foo * 2, 200 - zGyro_canvas[foo]);
   }
   ctx2.stroke();
 
@@ -493,9 +507,14 @@ function bitStringToSignedInt(binStr) {
 }
 
 function saveToFile() {
+  // Check lengths of data
+  console.log(`The length of acceleration data is ${xAcc.length}, ${yAcc.length}, ${zAcc.length}`);
+  console.log(`The length of gyro data is ${xGyro.length}, ${yGyro.length}, ${zGyro.length}`);
+
+  // Save to JSON
   var file;
   var properties = { type: 'application/json' }; // Specify the file's mime-type.
-  var myObj = { accX: xAcc, accY: yAcc, accZ: zAcc, magX: xGyro, magY: yGyro, magZ: xGyro, timeStampsAcc: timestepsAcc, timeStampsGyro: timestampsGyro };
+  var myObj = { accX: xAcc, accY: yAcc, accZ: zAcc, magX: xGyro, magY: yGyro, magZ: zGyro, timeStampsAcc: timestepsAcc, timeStampsGyro: timestampsGyro};
   var myJSON = JSON.stringify(myObj);
   try {
     // Specify the filename using the File constructor, but ...
